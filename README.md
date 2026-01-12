@@ -34,6 +34,7 @@ For Amazon AWS will be enough:
      ansible-galaxy collection install -r requirements.yml --force
      ```
      > If you see `ansible-galaxy: command not found`, you have to relogin and then try again.
+     > The playbook now uses Docker Compose v2 (`docker compose`). The Docker role installs the Compose plugin (`docker-compose-plugin` on Debian/Ubuntu) automatically, but ensure it is available if you provision Docker manually.
   5. Make copies of the configuration files and modify them for your enviroment:
      ```shell
      yes | cp -p example.config.yml config.yml
@@ -410,4 +411,3 @@ All the Server and Client configuration located in Docker volume and can be ease
 
 
 Build 22.01.2023 by [d3vilh](https://github.com/d3vilh) for small home project.
-

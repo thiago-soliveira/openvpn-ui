@@ -1,16 +1,16 @@
 ---
 - name: Restart openvpn
-  community.docker.docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ config_dir }}/openvpn-server/"
-    build: false
-    restarted: true
+    build: never
+    state: restarted
   become: false
   when: ansible_distribution != "Ubuntu"
 
 - name: Restart monitoring
-  community.docker.docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "{{ config_dir }}/monitoring/"
-    build: false
-    restarted: true
+    build: never
+    state: restarted
   become: false
   when: ansible_distribution != "Ubuntu"
