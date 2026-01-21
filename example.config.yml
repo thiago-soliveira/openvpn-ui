@@ -5,7 +5,7 @@ config_dir: '~'
 # OpenVPN configuration.
 ovpn_enable: true
 
-ovpnui_user: "aws-admin"
+ovpnui_user: "vpn-admin"
 ovpnui_password: "gagaZush"                     # !Change this password!
 ovpn_trusted_subnet: "10.0.70.0/24"             # Trusted users subnet
 ovpn_guest_subnet: "10.0.71.0/24"               # Guest users subnet

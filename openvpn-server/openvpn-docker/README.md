@@ -1,9 +1,10 @@
 # OpenVPN and OpenVPN WEB UI
 
-Simple OpenVPN instance for EC2 T2-micro based AWS server. 
-It does include 2 different Docker containers:
+Simple OpenVPN instance for small hosts (low-resource friendly) deployed from this repository. It includes two Docker containers:
  - OpenVPN Back-End container (openvpn) powered by Alpine linux and 
  - OpenVPN WEB UI Front-End container (openvpn-ui) for managing OpenVPN server.
+
+This directory is synchronized to the target host by the Ansible playbook in `https://github.com/thiago-soliveira/openvpn-ui`, but the containers can also be run directly as shown below.
 
 ### Run this image using a `docker-compose.yml` file
 
@@ -123,18 +124,17 @@ docker run \
 -v /home/pi/openvpn:/etc/openvpn \
 -v /home/pi/openvpn/db:/opt/openvpn-gui/db \
 -v /home/pi/openvpn/pki:/usr/share/easy-rsa/pki \
--e OPENVPN_ADMIN_USERNAME='admin' \
+-e OPENVPN_ADMIN_USERNAME='vpn-admin' \
 -e OPENVPN_ADMIN_PASSWORD='gagaZush' \
 -p 8080:8080/tcp \
 --privileged local/openvpn-ui
 ```
 
-Most of documentation can be found in the [main README.md](https://github.com/d3vilh/raspberry-gateway) file, if you want to run it without anything else you'll have to edit the [dns-configuration](https://github.com/d3vilh/raspberry-gateway/blob/master/openvpn/config/server.conf#L20) (which currently points to the PiHole DNS Server) and
-if you don't want to use a custom dns-resolve at all you may also want to comment out [this line](https://github.com/d3vilh/raspberry-gateway/blob/master/openvpn/config/server.conf#L39).
+Most documentation for this deployment lives in the repository root README (`../../README.md`). If you run the containers standalone, adjust DNS settings in `../server.conf` to match your environment (the defaults push `8.8.8.8` and `1.0.0.1`).
 
 ## Configuration
 
-**OpenVPN WEB UI** can be accessed on own port (*e.g. http://localhost:8080 , change `localhost` to your EC2's Public or Private IPv4 address*), the default user and password is `admin/gagaZush` preconfigured in `config.yml` which you supposed to [set in](https://github.com/d3vilh/openvpn-aws/blob/master/example.config.yml#L18) `ovpnui_user` & `ovpnui_password` vars, just before the installation.
+**OpenVPN WEB UI** can be accessed on own port (*e.g. http://localhost:8080 , change `localhost` to your server's Public or Private IPv4 address*). The default user and password are `vpn-admin/gagaZush`, configured via `ovpnui_user` and `ovpnui_password` in `config.yml` (see `../../example.config.yml`). Change them before the installation.
 
 The volume container will be inicialized by using the official OpenVPN `openvpn_openvpn` image with included scripts to automatically generate everything you need  on the first run:
  - Diffie-Hellman parameters
@@ -147,7 +147,7 @@ This setup use `tun` mode, because it works on the widest range of devices. tap 
 
 The topology used is `subnet`, because it works on the widest range of OS. p2p, for instance, does not work on Windows.
 
-The server config [specifies](https://github.com/d3vilh/openvpn-aws/blob/master/openvpn/config/server.conf#L40) `push redirect-gateway def1 bypass-dhcp`, meaning that after establishing the VPN connection, all traffic will go through the VPN. This might cause problems if you use local DNS recursors which are not directly reachable, since you will try to reach them through the VPN and they might not answer to you. If that happens, use public DNS resolvers like those of OpenDNS (`208.67.222.222` and `208.67.220.220`) or Google (`8.8.4.4` and `8.8.8.8`).
+The server config (`../server.conf`) specifies `push redirect-gateway def1 bypass-dhcp`, meaning that after establishing the VPN connection, all traffic will go through the VPN. This might cause problems if you use local DNS recursors which are not directly reachable, since you will try to reach them through the VPN and they might not answer to you. If that happens, use public DNS resolvers like those of OpenDNS (`208.67.222.222` and `208.67.220.220`) or Google (`8.8.4.4` and `8.8.8.8`).
 
 ### Generating .OVPN client profiles
 
@@ -155,40 +155,39 @@ Before client cert. generation you need to update the external IP address to you
 
 For this go to `"Configuration > Settings"`:
 
-<img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OVPN_ext_serv_ip1.png" alt="Configuration > Settings" width="350" border="1" />
+<img src="../../images/OVPN_ext_serv_ip1.png" alt="Configuration > Settings" width="350" border="1" />
 
 And then update `"Server Address (external)"` field with your external Internet IP. Then go to `"Certificates"`, enter new VPN client name in the field at the page below and press `"Create"` to generate new Client certificate:
 
-<img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OVPN_ext_serv_ip2.png" alt="Server Address" width="350" border="1" />  <img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OVPN_New_Client.png" alt="Create Certificate" width="350" border="1" />
+<img src="../../images/OVPN_ext_serv_ip2.png" alt="Server Address" width="350" border="1" />  <img src="../../images/OVPN_New_Client.png" alt="Create Certificate" width="350" border="1" />
 
 To download .OVPN client configuration file, press on the `Client Name` you just created:
 
-<img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OVPN_New_Client_download.png" alt="download OVPN" width="350" border="1" />
+<img src="../../images/OVPN_New_Client_download.png" alt="download OVPN" width="350" border="1" />
 
 If you use NAT and different port for all the external connections on your network router, you may need to change server port in .OVPN file. For that, just open it in any text editor (emax?) and update `1194` port with the desired one in this line: `remote 178.248.232.12 1194 udp`.
-This line also can be [preconfigured in](https://github.com/d3vilh/openvpn-aws/blob/master/example.config.yml#L23) `config.yml` file in var `ovpn_remote`.
+This line also can be preconfigured in `../../example.config.yml` in var `ovpn_remote`.
 
 Install [Official OpenVPN client](https://openvpn.net/vpn-client/) to your client device.
 
 Deliver .OVPN profile to the client device and import it as a FILE, then connect with new profile to enjoy your free VPN:
 
-<img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OVPN_Palm_import.png" alt="PalmTX Import" width="350" border="1" /> <img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OVPN_Palm_connected.png" alt="PalmTX Connected" width="350" border="1" />
+<img src="../../images/OVPN_Palm_import.png" alt="PalmTX Import" width="350" border="1" /> <img src="../../images/OVPN_Palm_connected.png" alt="PalmTX Connected" width="350" border="1" />
 
 ### Revoking .OVPN profiles
 
 If you would like to prevent client to use yor VPN connection, you have to revoke client certificate and restart the OpenVPN daemon.
 You can do it via OpenVPN WEB UI `"Certificates"` menue, by pressing Revoke red button:
 
-<img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OpenVPN-UI-Revoke.png" alt="Revoke Certificate" width="600" border="1" />
+<img src="../../images/OpenVPN-UI-Revoke.png" alt="Revoke Certificate" width="600" border="1" />
 
 Revoked certificates won't kill active connections, you'll have to restart the service if you want the user to immediately disconnect. It can be done via Portainer or OpenVPN WEB UI from the same `"Certificates"` page, by pressing Restart red button:
 
-<img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OpenVPN-UI-Restart.png" alt="OpenVPN Restart" width="600" border="1" />
+<img src="../../images/OpenVPN-UI-Restart.png" alt="OpenVPN Restart" width="600" border="1" />
 
 ### OpenVPN client subnets. Guest and Home users
 
-[OpenVPN-AWS'](https://github.com/d3vilh/openvpn-aws/) OpenVPN server uses `10.0.70.0/24` **"Trusted"** subnet for dynamic clients by default and all the clients connected by default will have full access to your AWS Private subnet, as well as external Internet access with EC2 Public IP.
-However you can be desired to share VPN access with your friends and restrict access to your AWS Private network for them (so they wont access OpenVPN-UI GUI or other services), but allow to use Internet connection with EC2 Public IP. This type of guest clients needs to live in special **"Guest users"** subnet - `10.0.71.0/24`:
+The bundled OpenVPN server uses `10.0.70.0/24` as the **"Trusted"** subnet for dynamic clients by default, giving them full access to your private network as well as external Internet access with the host's public IP. You can also keep friends or guests isolated by placing them in the **"Guest users"** subnet `10.0.71.0/24`:
 
 To assign desired subnet policy to the specific client, you have to define static IP address for this client after you generate .OVPN profile.
 
@@ -285,18 +284,18 @@ ifconfig-push 10.0.71.2 255.255.255.0
 
 [**OpenVPN**](https://openvpn.net) as a server and **OpenVPN-web-ui** as a WEB UI screenshots:
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Login.png" alt="OpenVPN-UI Login screen" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Login.png" alt="OpenVPN-UI Login screen" width="1000" border="1" />
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Home.png" alt="OpenVPN-UI Home screen" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Home.png" alt="OpenVPN-UI Home screen" width="1000" border="1" />
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Certs.png" alt="OpenVPN-UI Certificates screen" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Certs.png" alt="OpenVPN-UI Certificates screen" width="1000" border="1" />
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Logs.png" alt="OpenVPN-UI Logs screen" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Logs.png" alt="OpenVPN-UI Logs screen" width="1000" border="1" />
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Config.png" alt="OpenVPN-UI Configuration screen" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Config.png" alt="OpenVPN-UI Configuration screen" width="1000" border="1" />
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Server-config.png" alt="OpenVPN-UI Server Configuration screen" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Server-config.png" alt="OpenVPN-UI Server Configuration screen" width="1000" border="1" />
 
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OpenVPN-UI-Profile.png" alt="OpenVPN-UI User Profile" width="1000" border="1" />
+<img src="../../images/OpenVPN-UI-Profile.png" alt="OpenVPN-UI User Profile" width="1000" border="1" />
 
 Build 22.01.2023 by [d3vilh](https://github.com/d3vilh) for small home project.

@@ -1,19 +1,19 @@
-# OpenVPN AWS
+# OpenVPN UI
 
-**OpenVPN instance**. Which includes 
-[**OpenVPN container**](https://github.com/d3vilh/openvpn-server) with simple [**WEB UI**](https://github.com/d3vilh/openvpn-ui) as lightweight web administration interface:
+An Ansible playbook that provisions the [**d3vilh/openvpn-server**](https://github.com/d3vilh/openvpn-server) container with the [**d3vilh/openvpn-ui**](https://github.com/d3vilh/openvpn-ui) front-end and optional monitoring. Clone this fork from `https://github.com/thiago-soliveira/openvpn-ui`.
 
-<img src="https://raw.githubusercontent.com/d3vilh/openvpn-ui/main/docs/images/OpenVPN-UI-Home.png" alt="Openvpn-ui home screen"/>
+<img src="images/OpenVPN-UI-Home.png" alt="Openvpn-ui home screen"/>
 
 # Requirements
-**Any Intel or AMD x86 based computer**, or x86 VM, or cloud instance with at least 1 CPU core and 512Mb RAM.
+**Any Intel or AMD x86 based computer**, or x86 VM, or cloud instance with at least 1 CPU core and 512Mb RAM (1Gb recommended).
 
-For Amazon AWS will be enough:
-- [**Amazon AWS EC2 T2 Micro Instance**](https://aws.amazon.com/ec2/instance-types/t2/) 1x CPU Core, 1Gb RAM
-- [**Amazon AWS Debian amd64 AMI**](https://wiki.debian.org/Cloud/AmazonEC2Image/Bullseye),Debian 11 Bullseye
-- **At least 4Gb GP2 Storage**
-- **Opened UDP/1194 and TCP/8080** ports (TCP/8080 necessary for [OpenVPN-UI](https://github.com/d3vilh/openvpn-ui) initial configuration only)
-> Theoretically [OpenVPN AWS](https://github.com/d3vilh/openvpn-aws) will run on EC2 T2 Nano Instance (1x CPU Core, 512Mb RAM), it was never tested (however it runs very well on ARM based Raspberry Pi Zero1 with 512MB RAM).
+Recommended OS: [Debian 12 (Bookworm)](https://www.debian.org/releases/bookworm/) amd64 with at least 4Gb of storage.
+
+Open the following ports on your firewall/router:
+- UDP/1194 for OpenVPN traffic
+- TCP/8080 temporarily for the OpenVPN-UI initial configuration (close it afterward or restrict to trusted IPs)
+
+> This stack also runs on low-power devices (e.g., Raspberry Pi Zero with 512MB RAM), though heavy loads benefit from more resources.
 
 # Installation
 
@@ -23,11 +23,11 @@ For Amazon AWS will be enough:
      ```
   2. Clone this repository: 
      ```shell
-     git clone https://github.com/d3vilh/openvpn-aws
+     git clone https://github.com/thiago-soliveira/openvpn-ui
      ```
   3. Then enter the repository directory: 
      ```shell 
-     cd openvpn-aws
+     cd openvpn-ui
      ```
   4. Install requirements: 
      ```shell
@@ -35,6 +35,7 @@ For Amazon AWS will be enough:
      ```
      > If you see `ansible-galaxy: command not found`, you have to relogin and then try again.
      > The playbook now uses Docker Compose v2 (`docker compose`). The Docker role installs the Compose plugin (`docker-compose-plugin` on Debian/Ubuntu) automatically, but ensure it is available if you provision Docker manually.
+     > If you get `couldn't resolve module/action 'community.docker.docker_compose_v2'`, it usually means sudo is using an older system collection path. Either run the playbook without sudo (`ansible-playbook main.yml --ask-become-pass`), or install the collection for root: `sudo ansible-galaxy collection install community.docker:5.0.5 -p /usr/share/ansible/collections`.
   5. Make copies of the configuration files and modify them for your enviroment:
      ```shell
      yes | cp -p example.config.yml config.yml
@@ -45,7 +46,7 @@ For Amazon AWS will be enough:
      sudo usermod -aG docker $USER
      ```
   **RELOGIN NOW** to apply group changes.
-  7. **Double check** that `ansible_user` is correct for `inventory.yml`. Need to run installtion on the remote server - follow the recomendations in config file.
+  7. **Double check** `inventory.yml` (host alias `openvpn` by default) has the right `ansible_host` and `ansible_user` values for the machine where the containers will run.
      
      > **Note**: To make all necesary changes: `nano inventory.yml`, save the file - `Ctrl+O` and `Ctrl+X` to exit.
 
@@ -53,27 +54,17 @@ For Amazon AWS will be enough:
      ```shell
      sudo ansible-playbook main.yml
      ```
-> **If running locally on the EC2**: You may have error like `Error while fetching server API version` or `Permission denied`. You have to relogin and then run the playbook again.
+> If running locally on the target host you may see `Error while fetching server API version` or `Permission denied`. Log out/in (to pick up the `docker` group) and run the playbook again.
 
-  9. Now, open your [EC2 console](https://console.aws.amazon.com/ec2/home) and go to `"Network & Security"` > `"Security Groups"` to create two new Security groups for opening OpenVPN UDP/1194 and OpenVPN-UI TCP/8080 ports for your EC2 instance.
+  9. Make sure your firewall/router allows UDP/1194 to the host running OpenVPN.
 
-  10. Configure Security Group for OpenVPN (to open UDP/1194 port for Public access):
+  10. Temporarily allow TCP/8080 to reach the OpenVPN-UI for the first login, then close or restrict it after you confirm VPN access works.
 
-  <img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OpenVPN-EC2-OVPN-Only.png" alt="Opening EC2 Public OVPN Port" width="600" border="1" />
-
-  11. Configure Security Group for OpenVPN-UI (to open TCP/8080 port for Public access):
-
-  <img src="https://github.com/d3vilh/openvpn-aws/blob/master/images/OpenVPN-EC2-UI-Only.png" alt="Opening EC2 Public OpenVPN-UI Port" width="600" border="1" />
-
-  12. Assign both Security groups to your running EC2 instance.
-
-  13. **Generate first .OVPN profile** as described below, with **"Trusted"** subnet IP (`10.0.70.0/24`) via OpenVPN-UI web GUI and connect with it, to check your setup.
-
-  14. Now when you have OpenVPN-UI access over VPN you **MUST** remove OpenVPN-UI Security group profile from you EC2 instance settings. **Because of security reasons!!!**
+  11. **Generate first .OVPN profile** as described below, with **"Trusted"** subnet IP (`10.0.70.0/24`) via OpenVPN-UI web GUI and connect with it to validate your setup.
 
 # Usage
 
-**OpenVPN WEB UI** can be accessed on own port (*e.g. http://localhost:8080 , change `localhost` to your EC2's Public or Private IPv4 address*), the default user and password is `aws-admin/gagaZush` preconfigured in `config.yml` which you supposed to [set in](https://github.com/d3vilh/openvpn-aws/blob/master/example.config.yml#L9) `ovpnui_user` & `ovpnui_password` vars, just before the installation.
+**OpenVPN WEB UI** can be accessed on own port (*e.g. http://localhost:8080 , change `localhost` to your server's Public or Private IPv4 address*). The UI credentials come from `ovpnui_user` and `ovpnui_password` in `config.yml` (copied from `example.config.yml`); the defaults are `vpn-admin/gagaZush`, and you should change them before running the playbook.
 
 ### Container volume
 The container volume can be initialized by using the [d3vilh/openvpn-server](https://github.com/d3vilh/openvpn-server) image with included scripts to automatically generate everything you need on the first run:
@@ -88,7 +79,7 @@ However you can generate all the above components on OpenVPN UI `Configuration >
 ### EasyRSA vars
 You can update all EasyRSA parameters with OpenVPN UI on `Configuration > EasyRSA vars` page. You also can set custom EasyRSA vars for every new Client Certificate during its creation.
 
-Default EasyRSA configuration [can be set prior](https://github.com/d3vilh/openvpn-aws/blob/master/example.config.yml#L9) installation in `config.yml` file:
+Default EasyRSA configuration can be set prior to installation in `config.yml` (see `example.config.yml` for the shipped defaults):
 
 ```shell
 # EasyRSA configuration parameters.
@@ -137,7 +128,7 @@ By default [d3vilh/openvpn-server](https://github.com/d3vilh/openvpn-server) Ope
 However you can be desired to share internet over VPN with specific, Guest Clients and restrict access to your **"Private/Home"** subnet. For this scenario [d3vilh/openvpn-server](https://github.com/d3vilh/openvpn-server) `server.conf` configuration file has special `route 10.0.71.0/24` option, aka **"Guest users"** subnet.
 
 <p align="center">
-<img src="https://github.com/d3vilh/raspberry-gateway/blob/master/images/OVPN_VLANs.png" alt="OpenVPN Subnets" width="700" border="1" />
+<img src="images/OVPN_VLANs.png" alt="OpenVPN Subnets" width="700" border="1" />
 </p>
 
 To assign desired subnet policy to the specific client, you have to define static IP address for the client during its profile/Certificate creation.
@@ -178,23 +169,23 @@ You can update external client IP and port address anytime under `"Configuration
 
 For this go to `"Configuration > OpenVPN Client"`:
 
-<img src="https://github.com/d3vilh/openvpn-ui/blob/main/docs/images/OpenVPN-UI-ext_serv_ip1.png" alt="Configuration > Settings" width="350" border="1" />
+<img src="images/OVPN_ext_serv_ip1.png" alt="Configuration > Settings" width="350" border="1" />
 
 And then update `"Connection Address"` and `"Connection Port"` fields with your external Internet IP and Port. 
 
 To generate new Client Certificate go to `"Certificates"`, then press `"Create Certificate"` button, enter new VPN client name, complete all the rest fields and press `"Create"` to generate new Client certificate:
 
-<img src="https://github.com/d3vilh/openvpn-ui/blob/main/docs/images/OpenVPN-UI-ext_serv_ip2.png" alt="Server Address" width="350" border="1" />  <img src="https://github.com/d3vilh/openvpn-ui/blob/main/docs/images/OpenVPN-UI-New_Client.png" alt="Create Certificate" width="350" border="1" />
+<img src="images/OVPN_ext_serv_ip2.png" alt="Server Address" width="350" border="1" />  <img src="images/OVPN_New_Client.png" alt="Create Certificate" width="350" border="1" />
 
 To download .OVPN client configuration file, press on the `Client Name` you just created:
 
-<img src="https://github.com/d3vilh/openvpn-ui/blob/main/docs/images/OpenVPN-UI-New_Client_download.png" alt="download OVPN" width="350" border="1" />
+<img src="images/OVPN_New_Client_download.png" alt="download OVPN" width="350" border="1" />
 
 Install [Official OpenVPN client](https://openvpn.net/vpn-client/) to your client device.
 
 Deliver .OVPN profile to the client device and import it as a FILE, then connect with new profile to enjoy your free VPN:
 
-<img src="https://github.com/d3vilh/openvpn-ui/blob/main/docs/images/OpenVPN-UI-Palm_import.png" alt="PalmTX Import" width="350" border="1" /> <img src="https://github.com/d3vilh/openvpn-ui/blob/main/docs/images/OpenVPN-UI-Palm_connected.png" alt="PalmTX Connected" width="350" border="1" />
+<img src="images/OVPN_Palm_import.png" alt="PalmTX Import" width="350" border="1" /> <img src="images/OVPN_Palm_connected.png" alt="PalmTX Connected" width="350" border="1" />
 
   </details>
 

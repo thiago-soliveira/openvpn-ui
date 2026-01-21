@@ -1,5 +1,5 @@
 ---
-- hosts: openvpn-aws
+- hosts: openvpn
   become: true
 
   pre_tasks:
