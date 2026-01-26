@@ -33,6 +33,29 @@ Open the following ports on your firewall/router:
      ```shell
      ansible-galaxy collection install -r requirements.yml --force
      ```
+     > If you see `Ansible could not initialize the preferred locale: unsupported locale setting` on Debian 12, run once and relogin:
+     > ```shell
+     > sudo apt-get update
+     > sudo apt-get install -y locales
+     > sudo sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+     > sudo locale-gen
+     > sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+     > ```
+     > If your session shows mixed locales (e.g., `LANG=en_US.UTF-8` but `LC_*` is `pt_BR.UTF-8`), generate the locale you use and make it consistent:
+     > ```shell
+     > sudo apt-get update
+     > sudo apt-get install -y locales
+     > sudo sed -i 's/^# *pt_BR.UTF-8 UTF-8/pt_BR.UTF-8 UTF-8/' /etc/locale.gen
+     > sudo sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+     > sudo locale-gen
+     > sudo update-locale LANG=pt_BR.UTF-8 LC_ALL=pt_BR.UTF-8
+     > ```
+     > If it still fails, force a safe fallback locale and relogin:
+     > ```shell
+     > sudo update-locale LANG=C.UTF-8 LC_ALL=C.UTF-8
+     > ```
+     > If it still fails after relogin, remove conflicting `LC_*` exports from `/etc/default/locale`, `/etc/environment`, or your shell profile (`~/.profile`, `~/.bashrc`, `~/.zshrc`).
+     > (On Amazon Linux 2/2023: `sudo localectl set-locale LANG=en_US.UTF-8` then relogin.)
      > If you see `ansible-galaxy: command not found`, you have to relogin and then try again.
      > The playbook now uses Docker Compose v2 (`docker compose`). The Docker role installs the Compose plugin (`docker-compose-plugin` on Debian/Ubuntu) automatically, but ensure it is available if you provision Docker manually.
      > If you get `couldn't resolve module/action 'community.docker.docker_compose_v2'`, it usually means sudo is using an older system collection path. Either run the playbook without sudo (`ansible-playbook main.yml --ask-become-pass`), or install the collection for root: `sudo ansible-galaxy collection install community.docker:5.0.5 -p /usr/share/ansible/collections`.
